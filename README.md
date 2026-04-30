@@ -4,6 +4,8 @@ projeto para culminancia do JRM. baseado em assassins creed e grandes navegaçoe
 
 ## Colaboradores
 
+Idealizadora - Prof(a). Leidimar Pires
+
 Lider - github.com/murilloyoung
 
 audios - Leon, Maria V., Juliano
