@@ -16,14 +16,14 @@ Equipe de Audio - Jose E., Maykon, Iago, Gabriella
 Idealizadora - Prof(a). Leidimar Pires
 
 ## HEAD
-=======
+
 Lider - github.com/murilloyoung
 
 game design - João F., Josuel, Miguel, Yasmin, Engel
 
 Audio - Jose E., Maykon, Iago, Gabriella
 
->>>>>>> 23a637d (adicionar documentaçao e corrigir arquivos)
+
 ## Ferramentas
 
 ![VS Code](https://img.shields.io/badge/VS%20Code-007ACC?style=for-the-badge&logo=visual-studio-code&logoColor=white)
