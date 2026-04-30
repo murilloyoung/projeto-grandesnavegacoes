@@ -15,14 +15,6 @@ Equipe de Audio - Jose E., Maykon, Iago, Gabriella
 
 Idealizadora - Prof(a). Leidimar Pires
 
-## HEAD
-
-Lider - github.com/murilloyoung
-
-game design - João F., Josuel, Miguel, Yasmin, Engel
-
-Audio - Jose E., Maykon, Iago, Gabriella
-
 
 ## Ferramentas
 
