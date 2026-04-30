@@ -15,7 +15,7 @@ Equipe de Audio - Jose E., Maykon, Iago, Gabriella
 
 Idealizadora - Prof(a). Leidimar Pires
 
-<<<<<<< HEAD
+## HEAD
 =======
 Lider - github.com/murilloyoung
 
