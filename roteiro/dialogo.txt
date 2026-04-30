@@ -1,0 +1,154 @@
+[INÍCIO – NPC aparece olhando o mar]
+
+Colombo: “...O oceano...”
+
+(pausa 2s)
+
+Colombo: “Um vazio imenso... que muitos temiam atravessar.”
+
+Colombo: “Diga-me, navegador... o que você procura?”
+
+➡️ Escolha do jogador:
+
+1. “Quero entender sua jornada.”
+2. “Quero riqueza e poder.”
+3. “Quero a verdade sobre a Índia.”
+4.  "Quem és tu?" 
+---
+
+[RAMO 1 – JORNADA]
+
+Colombo: “Então escute... com atenção.”
+
+Colombo: “Eu não era o homem mais rico... nem o mais respeitado.”
+
+Colombo: “Mas tinha uma convicção...”
+
+(pausa curta)
+
+Colombo: “Que era possível chegar às Índias navegando para o oeste.”
+
+➡️ Escolha:
+
+1. “Por que ninguém acreditava em você?”
+2. “Como conseguiu apoio?”
+
+---
+
+[Por que ninguém acreditava]
+
+Colombo: “Porque o desconhecido assusta.”
+
+Colombo: “Eles temiam cair no fim do mundo... ou nunca mais voltar.”
+
+Colombo: “Mas eu via oportunidade... onde outros viam medo.”
+
+---
+
+[Como conseguiu apoio]
+
+Colombo: “Anos de rejeição... portas fechadas.”
+
+Colombo: “Até que a Espanha ouviu meu plano.”
+
+Colombo: “Finalmente... alguém disposto a arriscar.”
+
+---
+
+[RAMO 2 – RIQUEZA]
+
+Colombo: “Ah... então você é movido pela ambição.”
+
+Colombo: “Não está sozinho.”
+
+Colombo: “Especiarias... ouro... rotas comerciais...”
+
+(pausa)
+
+Colombo: “Era isso que movia os reinos da Europa durante as Grandes Navegações.”
+
+➡️ Escolha:
+
+1. “Você encontrou ouro?”
+2. “O que encontrou então?”
+
+---
+
+[Você encontrou ouro]
+
+Colombo: “Pouco... menos do que esperavam.”
+
+Colombo: “Isso trouxe problemas... e desconfiança.”
+
+---
+
+[O que encontrou então]
+
+Colombo: “Terras desconhecidas.”
+
+Colombo: “Povos que nunca haviam visto europeus.”
+
+Colombo: “Um novo mundo... embora eu não soubesse disso na época.”
+
+---
+
+[RAMO 3 – VERDADE]
+
+Colombo: “A Índia...”
+
+(pausa longa)
+
+Colombo: “Eu acreditava ter chegado lá.”
+
+Colombo: “Mas estava enganado.”
+
+➡️ Escolha:
+
+1. “Então o que você descobriu?”
+2. “Isso foi um erro?”
+
+---
+
+[O que você descobriu]
+
+Colombo: “Um continente inteiro... desconhecido para nós.”
+
+Colombo: “Hoje vocês o chamam de América.”
+
+---
+
+[Isso foi um erro]
+
+Colombo: “Erro... ou destino?”
+
+Colombo: “Mesmo enganado... minha viagem mudou o mundo.”
+
+---
+[ quem foi cristovão ]
+
+Colombo: “Fui um navegador, explorador, cartógrafo e almirante.”
+
+Colombo: “Liderei a frota que alcançou o continente americano em 12 de outubro de 1492.”
+
+Colombo: “Parti sob o comando dos Reis Católicos da Espanha... em busca de uma nova rota para as Índias.”
+
+Colombo: “O que ficou conhecido como o descobrimento da América mudou tudo o que eu acreditava.”
+
+
+[FINAL COMUM – TODOS OS CAMINHOS]
+
+Colombo: “O oceano ainda guarda mistérios...”
+
+Colombo: “E agora... é a sua vez.”
+
+(pausa)
+
+Colombo: “Você navegaria por glória... riqueza... ou descoberta?”
+
+➡️ Escolha final:
+
+1. “Glória”
+2. “Riqueza”
+3. “Descoberta”
+
+[o jogador volta para o inicio]
