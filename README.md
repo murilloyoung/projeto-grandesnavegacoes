@@ -1,18 +1,19 @@
 ## Ideia Do Projeto
 
-projeto para culminancia do JRM. baseado em assassins creed e grandes navegaçoes
+Projeto para culminância do Curso Técnico Programação de Jogos Digitais Senai - JRM. Inspirado em Assassins Creed e Grandes Navegaçoes.
 
 ## Colaboradores
+Equipe de Engenheiros: Prof. Jairon e Alunos
+
+Lider Técnico - Murillo 
+
+Equipe de Roteiro - Leon, Maria V., Juliano
+
+Equipe de Game Design - João F., Josuel, Miguel, Yasmin, Engel
+
+Equipe de Audio - Jose E., Maykon, Iago, Gabriella
 
 Idealizadora - Prof(a). Leidimar Pires
-
-Lider - github.com/murilloyoung
-
-audios - Leon, Maria V., Juliano
-
-game design - João F., Josuel, Miguel, Yasmin, Engel
-
-Audio - Jose E., Maykon, Iago, Gabriella
 
 ## Ferramentas
 
