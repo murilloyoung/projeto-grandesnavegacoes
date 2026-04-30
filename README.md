@@ -5,8 +5,11 @@ projeto para culminancia do JRM. baseado em assassins creed e grandes navegaçoe
 ## Colaboradores
 
 Lider - github.com/murilloyoung
+
 audios - Leon, Maria V., Juliano
-game design - João F., Josuel, Miguel, Yasmin
+
+game design - João F., Josuel, Miguel, Yasmin, Engel
+
 Audio - Jose E., Maykon, Iago, Gabriella
 
 ## Ferramentas
