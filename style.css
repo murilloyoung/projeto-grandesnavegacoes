@@ -18,7 +18,19 @@
       color: var(--parchment);
       height: 100vh;
       overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
       cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 20 20'%3E%3Ccircle cx='10' cy='10' r='4' fill='%23c9a84c' opacity='0.8'/%3E%3C/svg%3E") 10 10, crosshair;
+    }
+
+    #game-wrapper {
+      position: relative;
+      width:  min(100vw, 1280px);
+      height: min(100vh, 720px);
+      overflow: hidden;
+      border: 1px solid rgba(201,168,76,0.25);
+      box-shadow: 0 0 80px rgba(0,0,0,0.9), 0 0 0 1px rgba(201,168,76,0.08);
     }
 
     /* ── OCEAN BACKGROUND ── */
@@ -340,4 +352,296 @@
     .back-btn:hover {
       background: rgba(201,168,76,0.12);
       border-color: var(--gold);
+    }
+
+    /* ══════════════════════════════════════
+       JOGO — CANVAS + HUD
+    ══════════════════════════════════════ */
+
+    #game-canvas {
+      display: none;
+      position: absolute;
+      inset: 0;
+      z-index: 100;
+    }
+
+    #hud {
+      display: none;
+      position: absolute;
+      inset: 0;
+      z-index: 101;
+      pointer-events: none;
+    }
+
+    #region-label {
+      position: absolute;
+      top: 16px;
+      left: 16px;
+      font-family: 'Cinzel', serif;
+      font-size: 0.6rem;
+      letter-spacing: 0.28em;
+      color: rgba(201,168,76,0.42);
+      text-transform: uppercase;
+    }
+
+    #location-prompt {
+      position: absolute;
+      bottom: 68px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(6,14,26,0.93);
+      border: 1px solid rgba(201,168,76,0.35);
+      color: #f0d080;
+      font-family: 'Cinzel', serif;
+      font-size: 0.75rem;
+      letter-spacing: 0.16em;
+      padding: 8px 22px;
+      white-space: nowrap;
+      text-transform: uppercase;
+      opacity: 0;
+      transition: opacity 0.2s;
+    }
+    #location-prompt.visible { opacity: 1; }
+
+    .hud-controls {
+      position: absolute;
+      bottom: 14px;
+      left: 16px;
+      font-family: 'Cinzel', serif;
+      font-size: 0.58rem;
+      letter-spacing: 0.12em;
+      color: rgba(201,168,76,0.28);
+      text-transform: uppercase;
+    }
+
+    /* ══════════════════════════════════════
+       DIÁLOGO
+    ══════════════════════════════════════ */
+
+    #dialogue-box {
+      display: none;
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      z-index: 102;
+      background: linear-gradient(160deg, rgba(6,14,26,0.97) 0%, rgba(16,34,64,0.96) 100%);
+      border-top: 1px solid rgba(201,168,76,0.28);
+      padding: 22px 52px 18px;
+      pointer-events: all;
+      animation: dialogueIn 0.22s ease;
+    }
+    #dialogue-box.active { display: block; }
+
+    @keyframes dialogueIn {
+      from { transform: translateY(16px); opacity: 0; }
+      to   { transform: translateY(0);    opacity: 1; }
+    }
+
+    #dialogue-npc-name {
+      display: block;
+      font-family: 'Cinzel Decorative', cursive;
+      color: var(--gold);
+      font-size: 0.9rem;
+      letter-spacing: 0.1em;
+      margin-bottom: 10px;
+    }
+
+    #dialogue-text {
+      font-family: 'IM Fell English', serif;
+      color: var(--parchment);
+      font-size: 1.05rem;
+      font-style: italic;
+      line-height: 1.65;
+      min-height: 2.2em;
+    }
+
+    #dialogue-choices {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 16px;
+    }
+
+    .choice-btn {
+      background: transparent;
+      border: 1px solid rgba(201,168,76,0.35);
+      color: rgba(240,220,175,0.85);
+      font-family: 'Cinzel', serif;
+      font-size: 0.73rem;
+      letter-spacing: 0.12em;
+      padding: 8px 18px;
+      cursor: pointer;
+      text-transform: uppercase;
+      transition: background 0.2s, border-color 0.2s, color 0.2s;
+    }
+    .choice-btn:hover {
+      background: rgba(201,168,76,0.1);
+      border-color: var(--gold);
+      color: var(--gold-light);
+    }
+
+    /* ── QUEST HUD ── */
+    #quest-hud {
+      position: absolute;
+      bottom: 44px;
+      left: 16px;
+      background: rgba(6,14,26,0.82);
+      border: 1px solid rgba(201,168,76,0.25);
+      padding: 10px 14px;
+      min-width: 210px;
+    }
+    .quest-title {
+      font-family: 'Cinzel', serif;
+      font-size: 0.55rem;
+      letter-spacing: 0.22em;
+      color: var(--gold);
+      text-transform: uppercase;
+      margin-bottom: 8px;
+      opacity: 0.7;
+    }
+    .quest-items { display: flex; flex-direction: column; gap: 5px; }
+    .q-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-family: 'Cinzel', serif;
+      font-size: 0.68rem;
+      color: rgba(242,228,196,0.5);
+      transition: color 0.4s;
+    }
+    .q-item.done { color: #2ecc71; }
+    .q-icon  { width: 14px; text-align: center; }
+    .q-label { flex: 1; }
+    .q-check { opacity: 0; transition: opacity 0.4s; font-size: 0.8rem; }
+    .q-item.done .q-check { opacity: 1; }
+
+    /* ── TELA DE CONCLUSÃO ── */
+    #completion-screen {
+      display: none;
+      position: absolute;
+      inset: 0;
+      z-index: 200;
+      background: rgba(4,10,20,0.97);
+      align-items: center;
+      justify-content: center;
+      animation: fadeIn 0.6s ease;
+    }
+    #completion-screen.active { display: flex; }
+
+    #completion-content {
+      text-align: center;
+      max-width: 520px;
+      padding: 0 24px;
+      animation: fadeDown 0.8s ease;
+    }
+    .completion-sup {
+      font-family: 'Cinzel', serif;
+      font-size: 0.7rem;
+      letter-spacing: 0.3em;
+      color: var(--gold);
+      opacity: 0.6;
+      text-transform: uppercase;
+      margin-bottom: 16px;
+    }
+    .completion-ship {
+      font-size: 3.5rem;
+      animation: shipFloat 3s ease-in-out infinite;
+      display: block;
+      margin-bottom: 12px;
+    }
+    .completion-title {
+      font-family: 'Cinzel Decorative', cursive;
+      font-size: clamp(1.6rem, 4vw, 2.4rem);
+      font-weight: 700;
+      background: linear-gradient(135deg, var(--gold-light), var(--gold));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin-bottom: 24px;
+    }
+    .completion-text {
+      font-family: 'IM Fell English', serif;
+      font-size: 1rem;
+      font-style: italic;
+      line-height: 1.7;
+      color: var(--parchment);
+      margin-bottom: 20px;
+    }
+    .completion-text strong { color: var(--gold-light); font-style: normal; }
+    .completion-divider {
+      color: var(--gold);
+      opacity: 0.4;
+      margin: 16px 0;
+      letter-spacing: 0.5em;
+    }
+    .completion-fact {
+      font-family: 'Cinzel', serif;
+      font-size: 0.8rem;
+      letter-spacing: 0.06em;
+      color: rgba(242,228,196,0.65);
+      line-height: 1.6;
+      margin-bottom: 32px;
+    }
+    .completion-fact strong { color: var(--gold-light); }
+    .completion-btn {
+      background: transparent;
+      border: 1px solid rgba(201,168,76,0.5);
+      color: var(--gold);
+      font-family: 'Cinzel', serif;
+      font-size: 0.8rem;
+      letter-spacing: 0.2em;
+      padding: 12px 32px;
+      cursor: pointer;
+      text-transform: uppercase;
+      transition: background 0.25s, border-color 0.25s, color 0.25s;
+    }
+    .completion-btn:hover {
+      background: rgba(201,168,76,0.12);
+      border-color: var(--gold);
+      color: var(--gold-light);
+    }
+
+    /* Botão de escolha primária (zarpar) */
+    .choice-btn--primary {
+      border-color: rgba(201,168,76,0.6) !important;
+      color: var(--gold-light) !important;
+      font-weight: 600;
+    }
+    .choice-btn--primary:hover {
+      background: rgba(201,168,76,0.18) !important;
+    }
+
+    #music-btn {
+      position: absolute;
+      top: 12px;
+      right: 16px;
+      background: rgba(6,14,26,0.75);
+      border: 1px solid rgba(201,168,76,0.3);
+      color: var(--gold);
+      font-size: 1rem;
+      width: 34px;
+      height: 34px;
+      border-radius: 50%;
+      cursor: pointer;
+      pointer-events: all;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: border-color 0.2s, background 0.2s;
+      line-height: 1;
+    }
+    #music-btn:hover {
+      background: rgba(201,168,76,0.12);
+      border-color: var(--gold);
+    }
+
+    #dialogue-advance {
+      font-family: 'Cinzel', serif;
+      font-size: 0.62rem;
+      letter-spacing: 0.18em;
+      color: rgba(201,168,76,0.38);
+      margin-top: 10px;
+      text-align: right;
+      text-transform: uppercase;
     }

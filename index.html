@@ -4,274 +4,71 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>A Era das Grandes Navegações</title>
-    <link
-      href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@400;700;900&family=Cinzel:wght@400;600&family=IM+Fell+English:ital@0;1&display=swap"
-      rel="stylesheet"
-    />
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@400;700;900&family=Cinzel:wght@400;600&family=IM+Fell+English:ital@0;1&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="style.css" />
   </head>
   <body>
-    <!-- OCEAN BG -->
-    <div id="ocean">
-      <div class="stars"></div>
-      <div class="map-grid"></div>
-      <div class="lat-lines"></div>
+    <div id="game-wrapper">
+      <!-- GAME CANVAS -->
+      <canvas id="game-canvas"></canvas>
 
-      <!-- Ship SVG silhouette -->
-      <svg
-        id="ship"
-        viewBox="0 0 400 220"
-        fill="none"
-        xmlns="http://www.w3.org/2000/svg"
-      >
-        <!-- Hull -->
-        <path
-          d="M30 170 Q200 200 370 170 L350 190 Q200 215 50 190 Z"
-          fill="var(--parchment)"
-        />
-        <!-- Main mast -->
-        <line
-          x1="200"
-          y1="170"
-          x2="200"
-          y2="20"
-          stroke="var(--parchment)"
-          stroke-width="4"
-        />
-        <!-- Fore mast -->
-        <line
-          x1="290"
-          y1="170"
-          x2="290"
-          y2="60"
-          stroke="var(--parchment)"
-          stroke-width="3"
-        />
-        <!-- Mizzen mast -->
-        <line
-          x1="120"
-          y1="170"
-          x2="120"
-          y2="80"
-          stroke="var(--parchment)"
-          stroke-width="3"
-        />
-        <!-- Main sail -->
-        <path
-          d="M200 25 L280 80 L280 140 L200 155 L120 140 L120 80 Z"
-          fill="var(--parchment)"
-          opacity="0.9"
-        />
-        <!-- Cross on sail -->
-        <line
-          x1="200"
-          y1="30"
-          x2="200"
-          y2="150"
-          stroke="var(--red-wax)"
-          stroke-width="5"
-        />
-        <line
-          x1="130"
-          y1="90"
-          x2="270"
-          y2="90"
-          stroke="var(--red-wax)"
-          stroke-width="5"
-        />
-        <!-- Fore sail -->
-        <path
-          d="M290 65 L355 105 L355 155 L290 165 Z"
-          fill="var(--parchment)"
-          opacity="0.85"
-        />
-        <!-- Mizzen sail -->
-        <path
-          d="M120 85 L55 115 L55 160 L120 168 Z"
-          fill="var(--parchment)"
-          opacity="0.85"
-        />
-        <!-- Bowsprit -->
-        <line
-          x1="370"
-          y1="165"
-          x2="420"
-          y2="135"
-          stroke="var(--parchment)"
-          stroke-width="3"
-        />
-        <!-- Flag -->
-        <path d="M200 20 L200 10 L225 15 L200 20Z" fill="var(--red-wax)" />
-      </svg>
+      <!-- HUD (overlay no jogo) -->
+      <div id="hud">
+        <div id="region-label"></div>
+        <div id="location-prompt"></div>
+        <div class="hud-controls">WASD — Mover &nbsp;·&nbsp; SHIFT — Correr &nbsp;·&nbsp; E — Interagir &nbsp;·&nbsp; M — Música</div>
+        <button id="music-btn" onclick="MUSIC.toggle(); updateMusicBtn();">🎵</button>
 
-      <!-- Waves -->
-      <svg
-        id="waves"
-        viewBox="0 0 1440 200"
-        preserveAspectRatio="none"
-        xmlns="http://www.w3.org/2000/svg"
-      >
-        <path
-          class="wave"
-          d="M0,80 C240,20 480,140 720,80 C960,20 1200,140 1440,80 L1440,200 L0,200Z"
-          fill="rgba(26,58,92,0.8)"
-        />
-        <path
-          class="wave2"
-          d="M0,110 C200,60 400,160 600,110 C800,60 1000,160 1200,110 C1300,85 1380,130 1440,110 L1440,200 L0,200Z"
-          fill="rgba(16,34,64,0.9)"
-        />
-        <path
-          class="wave3"
-          d="M0,140 C180,110 360,170 540,140 C720,110 900,170 1080,140 C1260,110 1380,160 1440,140 L1440,200 L0,200Z"
-          fill="rgba(10,22,40,1)"
-        />
-      </svg>
-    </div>
-
-    <!-- GAME CANVAS -->
-    <canvas
-      id="game-canvas"
-      width="1440"
-      height="900"
-      style="display: none; position: fixed; inset: 0; z-index: 50"
-    ></canvas>
-
-    <!-- COMPASS ROSE -->
-    <svg id="compass" viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">
-      <!-- Outer ring -->
-      <circle
-        cx="60"
-        cy="60"
-        r="56"
-        stroke="#c9a84c"
-        stroke-width="1"
-        fill="none"
-        opacity="0.5"
-      />
-      <circle
-        cx="60"
-        cy="60"
-        r="52"
-        stroke="#c9a84c"
-        stroke-width="0.4"
-        fill="none"
-        opacity="0.3"
-      />
-      <!-- Cardinal points -->
-      <polygon points="60,4 66,55 54,55" fill="#c9a84c" />
-      <polygon points="60,116 66,65 54,65" fill="rgba(201,168,76,0.5)" />
-      <polygon points="4,60 55,54 55,66" fill="rgba(201,168,76,0.5)" />
-      <polygon points="116,60 65,54 65,66" fill="rgba(201,168,76,0.5)" />
-      <!-- Intercardinal -->
-      <polygon
-        points="60,4 63,40 57,40"
-        fill="rgba(201,168,76,0.3)"
-        transform="rotate(45,60,60)"
-      />
-      <polygon
-        points="60,4 63,40 57,40"
-        fill="rgba(201,168,76,0.3)"
-        transform="rotate(135,60,60)"
-      />
-      <polygon
-        points="60,4 63,40 57,40"
-        fill="rgba(201,168,76,0.3)"
-        transform="rotate(225,60,60)"
-      />
-      <polygon
-        points="60,4 63,40 57,40"
-        fill="rgba(201,168,76,0.3)"
-        transform="rotate(315,60,60)"
-      />
-      <!-- Center -->
-      <circle cx="60" cy="60" r="6" fill="#c9a84c" />
-      <circle cx="60" cy="60" r="3" fill="#0a1628" />
-      <!-- N label -->
-      <text
-        x="60"
-        y="20"
-        text-anchor="middle"
-        fill="#f0d080"
-        font-size="10"
-        font-family="Cinzel, serif"
-        font-weight="700"
-      >
-        N
-      </text>
-    </svg>
-
-    <!-- COORDINATES -->
-    <div class="coords">38°42'N · 9°08'W · Lisboa, MCDXCII</div>
-    <div class="version">v0.1.0 — Demo</div>
-
-    <!-- MAIN UI -->
-    <div id="ui">
-      <div class="title-block">
-        <div class="subtitle">⚓ Anno Domini 1492 ⚓</div>
-        <h1>A Era das Grandes<br />Navegações</h1>
-        <div class="divider">
-          <div class="divider-line"></div>
-          <div class="divider-diamond"></div>
-          <div class="divider-line"></div>
+        <!-- Barra de missão -->
+        <div id="quest-hud">
+          <div class="quest-title">MISSÃO — Prepare a Expedição</div>
+          <div class="quest-items">
+            <div class="q-item" data-id="infante">
+              <span class="q-icon">♔</span>
+              <span class="q-label">Infante D. Henrique</span>
+              <span class="q-check">✓</span>
+            </div>
+            <div class="q-item" data-id="rei">
+              <span class="q-icon">♜</span>
+              <span class="q-label">Rei Dom Manuel I</span>
+              <span class="q-check">✓</span>
+            </div>
+            <div class="q-item" data-id="padre">
+              <span class="q-icon">✝</span>
+              <span class="q-label">Frei Henrique</span>
+              <span class="q-check">✓</span>
+            </div>
+          </div>
         </div>
       </div>
 
-      <div class="menu-panel">
-        <button class="menu-btn" onclick="openScreen('nova-viagem')">
-          <span class="btn-icon">⛵</span>
-          <span class="btn-label">Nova Viagem</span>
-        </button>
-        <button class="menu-btn" onclick="openScreen('carregar')">
-          <span class="btn-icon">📜</span>
-          <span class="btn-label">Carregar Partida</span>
-        </button>
-        <button class="menu-btn" onclick="openScreen('opcoes')">
-          <span class="btn-icon">⚙</span>
-          <span class="btn-label">Opções</span>
-        </button>
-        <button class="menu-btn" onclick="openScreen('creditos')">
-          <span class="btn-icon">✦</span>
-          <span class="btn-label">Créditos</span>
-        </button>
+      <!-- Tela de conclusão -->
+      <div id="completion-screen">
+        <div id="completion-content">
+          <div class="completion-sup">Lisboa, 9 de Março de 1500</div>
+          <div class="completion-ship">⛵</div>
+          <h2 class="completion-title">A Frota Zarpa!</h2>
+          <p class="completion-text">
+            Pedro Álvares Cabral parte com <strong>13 navios e 1.200 homens</strong>
+            rumo às Índias. Ao desviar-se para o Ocidente para evitar calmarias,
+            avista terras desconhecidas em <strong>22 de abril de 1500</strong>.
+          </p>
+          <div class="completion-divider">⚜ &nbsp; ⚜ &nbsp; ⚜</div>
+          <p class="completion-fact">
+            O <strong>Brasil</strong> havia sido descoberto — a maior consequência não planeada
+            das Grandes Navegações Portuguesas.
+          </p>
+          <button class="completion-btn" onclick="restartGame()">↩ &nbsp; Jogar Novamente</button>
+        </div>
       </div>
-    </div>
 
-    <!-- SUB-SCREENS -->
-    <div id="screen-nova-viagem" class="screen">
-      <h2>Nova Viagem</h2>
-      <p>
-        Escolha seu navegador e destino.<br />Em breve — esta tela será o início
-        da aventura.
-      </p>
-      <button class="back-btn" onclick="closeScreen()">← Voltar</button>
-    </div>
-
-    <div id="screen-carregar" class="screen">
-      <h2>Carregar Partida</h2>
-      <p style="font-style: normal; color: rgba(242, 228, 196, 0.4)">
-        Nenhuma partida salva encontrada.
-      </p>
-      <button class="back-btn" onclick="closeScreen()">← Voltar</button>
-    </div>
-
-    <div id="screen-opcoes" class="screen">
-      <h2>Opções</h2>
-      <p>Configurações de áudio e vídeo — em breve.</p>
-      <button class="back-btn" onclick="closeScreen()">← Voltar</button>
-    </div>
-
-    <div id="screen-creditos" class="screen">
-      <h2>Créditos</h2>
-      <p style="text-align: center; line-height: 2">
-        Desenvolvimento: <strong style="color: var(--gold)">Seu Nome</strong
-        ><br />
-        Assets: <strong style="color: var(--gold)">Seu Nome</strong><br />
-        <em style="opacity: 0.5; font-size: 0.8rem"
-          >SENAI — Desenvolvimento de Jogos · 2025</em
-        >
-      </p>
-      <button class="back-btn" onclick="closeScreen()">← Voltar</button>
+      <!-- CAIXA DE DIÁLOGO -->
+      <div id="dialogue-box">
+        <span id="dialogue-npc-name"></span>
+        <div id="dialogue-text"></div>
+        <div id="dialogue-choices"></div>
+        <div id="dialogue-advance">▶&nbsp; E — Continuar</div>
+      </div>
     </div>
 
     <script src="main.js"></script>
