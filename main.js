@@ -1,942 +1,1013 @@
-// ==================== CLASSES ====================
+"use strict";
 
-class InputManager {
-  constructor() {
-    this.keys = {};
-    this.setupListeners();
+// ══════════════════════════════════════════════════
+//  MÚSICA MEDIEVAL — Web Audio API (D Dórica)
+// ══════════════════════════════════════════════════
+const MUSIC = (() => {
+  let ctx = null,
+    master = null;
+  let playing = false,
+    loopTimer = null,
+    initialized = false;
+
+  const BPM = 72;
+  const BEAT = 60 / BPM;
+
+  // Frequências — escala D Dórica (D E F G A B C D)
+  const N = {
+    D3: 146.83,
+    A3: 220.0,
+    D4: 293.66,
+    E4: 329.63,
+    F4: 349.23,
+    G4: 392.0,
+    A4: 440.0,
+    B4: 493.88,
+    C5: 523.25,
+    D5: 587.33,
+    E5: 659.25,
+  };
+
+  // Melodia principal: [nota|null, beats]
+  const MELODY = [
+    ["D4", 1],
+    ["E4", 0.5],
+    ["F4", 0.5],
+    ["G4", 1],
+    ["A4", 1],
+    ["G4", 0.5],
+    ["F4", 0.5],
+    ["E4", 1],
+    ["D4", 2],
+    ["A4", 1],
+    ["B4", 0.5],
+    ["C5", 0.5],
+    ["D5", 1],
+    ["C5", 0.5],
+    ["B4", 0.5],
+    ["A4", 1],
+    ["G4", 2],
+    ["F4", 1],
+    ["G4", 0.5],
+    ["A4", 0.5],
+    ["B4", 1],
+    ["A4", 0.5],
+    ["G4", 0.5],
+    ["F4", 1],
+    ["E4", 1],
+    ["D4", 1],
+    ["F4", 1],
+    ["A4", 1],
+    ["G4", 1],
+    ["E4", 1],
+    ["D4", 3],
+    [null, 1],
+  ];
+
+  // Contracanto (alaúde, oitava abaixo, mais suave)
+  const COUNTER = [
+    ["D3", 0.5],
+    ["A3", 0.5],
+    ["D3", 0.5],
+    ["A3", 0.5],
+    ["D3", 0.5],
+    ["A3", 0.5],
+    ["D3", 0.5],
+    ["A3", 0.5],
+    ["D3", 0.5],
+    ["A3", 0.5],
+    ["D3", 0.5],
+    ["A3", 0.5],
+    ["D3", 0.5],
+    ["A3", 0.5],
+    ["D3", 0.5],
+    ["A3", 0.5],
+    ["D3", 0.5],
+    ["A3", 0.5],
+    ["D3", 0.5],
+    ["A3", 0.5],
+    ["D3", 0.5],
+    ["A3", 0.5],
+    ["D3", 0.5],
+    ["A3", 0.5],
+    ["D3", 0.5],
+    ["A3", 0.5],
+    ["D3", 0.5],
+    ["A3", 0.5],
+    ["D3", 0.5],
+    ["A3", 0.5],
+    ["D3", 1],
+    [null, 1],
+  ];
+
+  function playNote(freq, t, beats, vol, wave, filterHz = 4000) {
+    const dur = beats * BEAT;
+    const o = ctx.createOscillator();
+    const g = ctx.createGain();
+    const f = ctx.createBiquadFilter();
+    f.type = "lowpass";
+    f.frequency.value = filterHz;
+    o.type = wave;
+    o.frequency.value = freq;
+    o.connect(f);
+    f.connect(g);
+    g.connect(master);
+    const atk = Math.min(0.06, dur * 0.08);
+    g.gain.setValueAtTime(0, t);
+    g.gain.linearRampToValueAtTime(vol, t + atk);
+    g.gain.setValueAtTime(vol * 0.8, t + dur * 0.65);
+    g.gain.linearRampToValueAtTime(0, t + dur * 0.92);
+    o.start(t);
+    o.stop(t + dur + 0.05);
   }
 
-  setupListeners() {
-    document.addEventListener("keydown", (e) => {
-      this.keys[e.key.toLowerCase()] = true;
-      if (e.key === "Escape") closeScreen();
-    });
-    document.addEventListener("keyup", (e) => {
-      this.keys[e.key.toLowerCase()] = false;
-    });
-  }
+  function scheduleLoop() {
+    if (!playing) return;
+    const t0 = ctx.currentTime + 0.1;
+    let tm = t0,
+      tc = t0;
 
-  isKeyPressed(key) {
-    return this.keys[key.toLowerCase()] || false;
-  }
-
-  isSprinting() {
-    return this.isKeyPressed("shift");
-  }
-
-  getDirection() {
-    const dir = { x: 0, y: 0 };
-    if (this.isKeyPressed("w")) dir.y -= 1;
-    if (this.isKeyPressed("s")) dir.y += 1;
-    if (this.isKeyPressed("a")) dir.x -= 1;
-    if (this.isKeyPressed("d")) dir.x += 1;
-    return dir;
-  }
-}
-
-class Player {
-  constructor(x = 0, y = 0) {
-    this.x = x;
-    this.y = y;
-    this.normalSpeed = 5;
-    this.sprintSpeed = 8;
-    this.currentSpeed = this.normalSpeed;
-  }
-
-  update(inputManager, deltaTime) {
-    const direction = inputManager.getDirection();
-    const speed = inputManager.isSprinting()
-      ? this.sprintSpeed
-      : this.normalSpeed;
-
-    if (direction.x !== 0 || direction.y !== 0) {
-      const magnitude = Math.sqrt(direction.x ** 2 + direction.y ** 2);
-      const normalizedDir = {
-        x: direction.x / magnitude,
-        y: direction.y / magnitude,
-      };
-
-      this.x += normalizedDir.x * speed * deltaTime;
-      this.y += normalizedDir.y * speed * deltaTime;
-      this.currentSpeed = speed;
+    for (const [n, d] of MELODY) {
+      if (n) playNote(N[n], tm, d, 0.38, "triangle", 3500);
+      tm += d * BEAT;
     }
-  }
-
-  getPosition() {
-    return { x: this.x, y: this.y };
-  }
-
-  moveTo(x, y) {
-    this.x = x;
-    this.y = y;
-  }
-}
-
-class MapArea {
-  constructor(id, name, x, y, width, height, music = null, background = null) {
-    this.id = id;
-    this.name = name;
-    this.x = x;
-    this.y = y;
-    this.width = width;
-    this.height = height;
-    this.music = music;
-    this.background = background;
-    this.npcs = [];
-    this.quests = [];
-  }
-
-  addNPC(npc) {
-    this.npcs.push(npc);
-  }
-
-  addQuest(quest) {
-    this.quests.push(quest);
-  }
-
-  isPlayerInside(playerX, playerY) {
-    return (
-      playerX >= this.x &&
-      playerX <= this.x + this.width &&
-      playerY >= this.y &&
-      playerY <= this.y + this.height
-    );
-  }
-
-  getNPCById(npcId) {
-    return this.npcs.find((npc) => npc.id === npcId);
-  }
-}
-
-class Map {
-  constructor(gameWidth = 2000, gameHeight = 2000) {
-    this.gameWidth = gameWidth;
-    this.gameHeight = gameHeight;
-    this.areas = [];
-    this.currentArea = null;
-    this.createAreas();
-  }
-
-  createAreas() {
-    // Portugal - Porto de partida
-    this.addArea(
-      new MapArea(
-        "portugal",
-        "Portugal - Porto",
-        100,
-        100,
-        400,
-        300,
-        "vento",
-        "igrejaportugal.png",
-      ),
-    );
-
-    // Oceano Atlântico
-    this.addArea(
-      new MapArea(
-        "atlantico",
-        "Oceano Atlântico",
-        600,
-        50,
-        700,
-        400,
-        "ondasdomar",
-        null,
-      ),
-    );
-
-    // Brasil - Descoberta
-    this.addArea(
-      new MapArea(
-        "brasil",
-        "Brasil - Mata Brasileira",
-        1400,
-        100,
-        400,
-        350,
-        "papagaio",
-        "brasilepoca1500.png",
-      ),
-    );
-
-    // Índia - Calicute
-    this.addArea(
-      new MapArea(
-        "india",
-        "Índia - Calicute",
-        1650,
-        600,
-        300,
-        300,
-        "especiarias",
-        "igrejacatolicacenario.png",
-      ),
-    );
-
-    // Espanha - Corte de Colombo
-    this.addArea(
-      new MapArea(
-        "espanha",
-        "Espanha - Corte Real",
-        200,
-        700,
-        350,
-        300,
-        "corte",
-        "entradadeportugal.png",
-      ),
-    );
-
-    this.currentArea = this.areas[0];
-  }
-
-  addArea(area) {
-    this.areas.push(area);
-  }
-
-  getAreaByPosition(x, y) {
-    return this.areas.find((area) => area.isPlayerInside(x, y));
-  }
-
-  updatePlayerArea(playerX, playerY) {
-    const newArea = this.getAreaByPosition(playerX, playerY);
-    if (newArea && newArea !== this.currentArea) {
-      this.currentArea = newArea;
-      return true;
+    for (const [n, d] of COUNTER) {
+      if (n) playNote(N[n], tc, d, 0.18, "sawtooth", 600);
+      tc += d * BEAT;
     }
-    return false;
+
+    const totalMs = MELODY.reduce((s, [, d]) => s + d, 0) * BEAT * 1000;
+    loopTimer = setTimeout(scheduleLoop, totalMs - 300);
   }
 
-  getAreaById(id) {
-    return this.areas.find((area) => area.id === id);
-  }
-}
+  return {
+    getCtx() {
+      return ctx;
+    },
+    init() {
+      if (initialized) return;
+      initialized = true;
+      ctx = new (window.AudioContext || window.webkitAudioContext)();
+      master = ctx.createGain();
+      master.gain.value = 0.18;
+      const rev = ctx.createConvolver ? null : null; // sem reverb por simplicidade
+      master.connect(ctx.destination);
 
-class DialogNode {
-  constructor(id, text, speaker, choices = []) {
-    this.id = id;
-    this.text = text;
-    this.speaker = speaker;
-    this.choices = choices; // [{text: '...', nextNodeId: '...'}]
-  }
-}
+      // Bordão contínuo: D1 + A1 (quinta perfeita)
+      [36.71, 55.0].forEach((freq, i) => {
+        const o = ctx.createOscillator();
+        const g = ctx.createGain();
+        const f = ctx.createBiquadFilter();
+        f.type = "lowpass";
+        f.frequency.value = 180;
+        o.type = "sawtooth";
+        o.frequency.value = freq;
+        o.connect(f);
+        f.connect(g);
+        g.connect(master);
+        g.gain.value = i === 0 ? 0.08 : 0.05;
+        o.start();
+      });
 
-class DialogTree {
-  constructor(characterName) {
-    this.characterName = characterName;
-    this.nodes = {};
-    this.currentNodeId = null;
-  }
-
-  addNode(node) {
-    this.nodes[node.id] = node;
-  }
-
-  start(nodeId) {
-    this.currentNodeId = nodeId;
-    return this.nodes[nodeId];
-  }
-
-  goToNode(nodeId) {
-    if (this.nodes[nodeId]) {
-      this.currentNodeId = nodeId;
-      return this.nodes[nodeId];
-    }
-    return null;
-  }
-
-  getCurrentNode() {
-    return this.nodes[this.currentNodeId];
-  }
-}
-
-class DialogManager {
-  constructor() {
-    this.dialogs = {};
-    this.currentDialog = null;
-    this.loadDialogs();
-  }
-
-  loadDialogs() {
-    // Colombo
-    const colomboTree = new DialogTree("Cristóvão Colombo");
-
-    colomboTree.addNode(
-      new DialogNode(
-        "colombo_start",
-        "...O oceano...\n\nUm vazio imenso... que muitos temiam atravessar.\n\nDiga-me, navegador... o que você procura?",
-        "Colombo",
-        [
-          {
-            text: "Quero entender sua jornada.",
-            nextNodeId: "colombo_journey",
-          },
-          { text: "Quero riqueza e poder.", nextNodeId: "colombo_wealth" },
-          {
-            text: "Quero a verdade sobre a Índia.",
-            nextNodeId: "colombo_truth",
-          },
-          { text: "Quem és tu?", nextNodeId: "colombo_who" },
-        ],
-      ),
-    );
-
-    colomboTree.addNode(
-      new DialogNode(
-        "colombo_journey",
-        "Então escute... com atenção.\n\nEu não era o homem mais rico... nem o mais respeitado.\n\nMas tinha uma convicção...\n\nQue era possível chegar às Índias navegando para o oeste.",
-        "Colombo",
-        [
-          {
-            text: "Por que ninguém acreditava em você?",
-            nextNodeId: "colombo_belief",
-          },
-          { text: "Como conseguiu apoio?", nextNodeId: "colombo_support" },
-        ],
-      ),
-    );
-
-    colomboTree.addNode(
-      new DialogNode(
-        "colombo_belief",
-        "Porque o desconhecido assusta.\n\nEles temiam cair no fim do mundo... ou nunca mais voltar.\n\nMas eu via oportunidade... onde outros viam medo.",
-        "Colombo",
-        [{ text: "Continuar...", nextNodeId: "colombo_end" }],
-      ),
-    );
-
-    colomboTree.addNode(
-      new DialogNode(
-        "colombo_support",
-        "Anos de rejeição... portas fechadas.\n\nAté que a Espanha ouviu meu plano.\n\nFinalmente... alguém disposto a arriscar.",
-        "Colombo",
-        [{ text: "Continuar...", nextNodeId: "colombo_end" }],
-      ),
-    );
-
-    colomboTree.addNode(
-      new DialogNode(
-        "colombo_wealth",
-        "Ah... então você é movido pela ambição.\n\nNão está sozinho.\n\nEspeciarias... ouro... rotas comerciais...\n\nEra isso que movia os reinos da Europa durante as Grandes Navegações.",
-        "Colombo",
-        [
-          { text: "Você encontrou ouro?", nextNodeId: "colombo_gold" },
-          { text: "O que encontrou então?", nextNodeId: "colombo_found" },
-        ],
-      ),
-    );
-
-    colomboTree.addNode(
-      new DialogNode(
-        "colombo_gold",
-        "Pouco... menos do que esperavam.\n\nIsso trouxe problemas... e desconfiança.",
-        "Colombo",
-        [{ text: "Continuar...", nextNodeId: "colombo_end" }],
-      ),
-    );
-
-    colomboTree.addNode(
-      new DialogNode(
-        "colombo_found",
-        "Terras desconhecidas.\n\nPovos que nunca haviam visto europeus.\n\nUm novo mundo... embora eu não soubesse disso na época.",
-        "Colombo",
-        [{ text: "Continuar...", nextNodeId: "colombo_end" }],
-      ),
-    );
-
-    colomboTree.addNode(
-      new DialogNode(
-        "colombo_truth",
-        "A Índia...\n\nEu acreditava ter chegado lá.\n\nMas estava enganado.",
-        "Colombo",
-        [
-          {
-            text: "Então o que você descobriu?",
-            nextNodeId: "colombo_discovery",
-          },
-          { text: "Isso foi um erro?", nextNodeId: "colombo_mistake" },
-        ],
-      ),
-    );
-
-    colomboTree.addNode(
-      new DialogNode(
-        "colombo_discovery",
-        "Um continente inteiro... desconhecido para nós.\n\nHoje vocês o chamam de América.",
-        "Colombo",
-        [{ text: "Continuar...", nextNodeId: "colombo_end" }],
-      ),
-    );
-
-    colomboTree.addNode(
-      new DialogNode(
-        "colombo_mistake",
-        "Erro... ou destino?\n\nMesmo enganado... minha viagem mudou o mundo.",
-        "Colombo",
-        [{ text: "Continuar...", nextNodeId: "colombo_end" }],
-      ),
-    );
-
-    colomboTree.addNode(
-      new DialogNode(
-        "colombo_who",
-        "Fui um navegador, explorador, cartógrafo e almirante.\n\nLiderei a frota que alcançou o continente americano em 12 de outubro de 1492.\n\nPartei sob o comando dos Reis Católicos da Espanha... em busca de uma nova rota para as Índias.",
-        "Colombo",
-        [{ text: "Continuar...", nextNodeId: "colombo_end" }],
-      ),
-    );
-
-    colomboTree.addNode(
-      new DialogNode(
-        "colombo_end",
-        "O oceano ainda guarda mistérios...\n\nE agora... é a sua vez.\n\nVocê navegaria por glória... riqueza... ou descoberta?",
-        "Colombo",
-        [
-          { text: "Glória", nextNodeId: "colombo_start" },
-          { text: "Riqueza", nextNodeId: "colombo_start" },
-          { text: "Descoberta", nextNodeId: "colombo_start" },
-          { text: "Finalizar diálogo", nextNodeId: null },
-        ],
-      ),
-    );
-
-    this.dialogs["colombo"] = colomboTree;
-
-    // Infante D. Henrique
-    const henriqueTree = new DialogTree("Infante D. Henrique");
-
-    henriqueTree.addNode(
-      new DialogNode(
-        "henrique_start",
-        "Portugal é pequeno, mas o mar não tem fronteiras.\n\nVai, e traz-me o que os mapas ainda não mostram.\n\nNão temas o horizonte. O que os homens chamam de fim do mundo, eu chamo de começo.",
-        "Infante D. Henrique",
-        [
-          { text: "Dar uma missão", nextNodeId: "henrique_mission" },
-          { text: "Ouvir reflexão", nextNodeId: "henrique_reflect" },
-          { text: "Despedir-se", nextNodeId: null },
-        ],
-      ),
-    );
-
-    henriqueTree.addNode(
-      new DialogNode(
-        "henrique_mission",
-        "Os mouros bloqueiam as rotas de terra. Encontra um caminho pelo mar — e a glória será tua e de Portugal.\n\nHá um cabo ao sul que nenhum cristão dobrou. Chama-se Bojador. Vai lá chegar.",
-        "Infante D. Henrique",
-        [{ text: "Voltar", nextNodeId: "henrique_start" }],
-      ),
-    );
-
-    henriqueTree.addNode(
-      new DialogNode(
-        "henrique_reflect",
-        "Dizem que sou o Navegador. Ironia — nunca embarquei. Mas cada nau que parte leva um pedaço da minha alma.\n\nDeus deu-nos olhos para ver além do horizonte. O medo é o único mapa falso.",
-        "Infante D. Henrique",
-        [{ text: "Voltar", nextNodeId: "henrique_start" }],
-      ),
-    );
-
-    this.dialogs["henrique"] = henriqueTree;
-
-    // Vasco da Gama
-    const gamaTree = new DialogTree("Vasco da Gama");
-
-    gamaTree.addNode(
-      new DialogNode(
-        "gama_start",
-        "Deixa os medos no porto. No mar só cabem coragem e obediência.\n\nJá doblamos o Cabo das Tormentas. O que vem a seguir não pode ser pior.",
-        "Vasco da Gama",
-        [
-          { text: "Receber missão", nextNodeId: "gama_mission" },
-          { text: "Ouvir sobre rivais", nextNodeId: "gama_rivals" },
-          { text: "Despedir-se", nextNodeId: null },
-        ],
-      ),
-    );
-
-    gamaTree.addNode(
-      new DialogNode(
-        "gama_mission",
-        "Preciso de alguém que chegue a Calicute antes de mim e saiba o que nos espera. Esse alguém és tu.\n\nOs especiarias valem ouro em Lisboa. Cada grão de pimenta que trouxeres paga o salário de dez homens.",
-        "Vasco da Gama",
-        [{ text: "Voltar", nextNodeId: "gama_start" }],
-      ),
-    );
-
-    gamaTree.addNode(
-      new DialogNode(
-        "gama_rivals",
-        "Os árabes dominam o comércio do Índico há séculos. Hoje isso muda.\n\nVeneza lucra com cada especiaria que passa pelo Mediterrâneo. Vamos cortar esse caminho pela raiz.",
-        "Vasco da Gama",
-        [{ text: "Voltar", nextNodeId: "gama_start" }],
-      ),
-    );
-
-    this.dialogs["gama"] = gamaTree;
-  }
-
-  startDialog(characterId) {
-    const startNodes = {
-      colombo: "colombo_start",
-      henrique: "henrique_start",
-      gama: "gama_start",
-    };
-
-    const tree = this.dialogs[characterId];
-    if (tree) {
-      this.currentDialog = tree;
-      return tree.start(startNodes[characterId]);
-    }
-    return null;
-  }
-
-  getCurrentDialog() {
-    return this.currentDialog;
-  }
-
-  goToNode(nodeId) {
-    if (this.currentDialog) {
-      return this.currentDialog.goToNode(nodeId);
-    }
-    return null;
-  }
-
-  endDialog() {
-    this.currentDialog = null;
-  }
-}
-
-class Quest {
-  constructor(id, title, description, reward = 100) {
-    this.id = id;
-    this.title = title;
-    this.description = description;
-    this.completed = false;
-    this.reward = reward;
-  }
-
-  complete() {
-    this.completed = true;
-  }
-}
-
-class GameManager {
-  constructor() {
-    this.inputManager = new InputManager();
-    this.player = new Player(250, 250);
-    this.map = new Map();
-    this.dialogManager = new DialogManager();
-    this.lastTime = Date.now();
-    this.gameRunning = true;
-    this.canvas = document.getElementById("game-canvas");
-    this.ctx = this.canvas.getContext("2d");
-    this.viewportX = 0;
-    this.viewportY = 0;
-    this.cameraZoom = 0.5; // Zoom out para ver mais do mapa
-    this.setupUI();
-    this.gameLoop();
-  }
-
-  setupUI() {
-    // Criar containers necessários
-    const gameContainer = document.createElement("div");
-    gameContainer.id = "game-container";
-    gameContainer.style.cssText = `
-      position: fixed;
-      inset: 0;
-      z-index: 100;
-      pointer-events: none;
-    `;
-
-    const hud = document.createElement("div");
-    hud.id = "hud";
-    hud.style.cssText = `
-      position: fixed;
-      top: 20px;
-      left: 20px;
-      color: #f2e4c4;
-      font-family: 'IM Fell English', serif;
-      z-index: 101;
-      background: rgba(10, 22, 40, 0.7);
-      padding: 12px 16px;
-      border: 1px solid #c9a84c;
-      border-radius: 4px;
-      font-size: 14px;
-      line-height: 1.6;
-    `;
-
-    const dialogBox = document.createElement("div");
-    dialogBox.id = "dialog-box";
-    dialogBox.style.cssText = `
-      position: fixed;
-      bottom: 20px;
-      left: 50%;
-      transform: translateX(-50%);
-      width: 80%;
-      max-width: 800px;
-      background: rgba(10, 22, 40, 0.95);
-      border: 2px solid #c9a84c;
-      padding: 20px;
-      border-radius: 10px;
-      color: #f2e4c4;
-      font-family: 'IM Fell English', serif;
-      z-index: 101;
-      display: none;
-      pointer-events: all;
-      max-height: 300px;
-      overflow-y: auto;
-    `;
-
-    const mapToggle = document.createElement("button");
-    mapToggle.id = "map-toggle-btn";
-    mapToggle.innerHTML = "🗺️ Mostrar Mapa";
-    mapToggle.style.cssText = `
-      position: fixed;
-      bottom: 20px;
-      left: 20px;
-      padding: 10px 16px;
-      background: rgba(201, 168, 76, 0.3);
-      border: 1px solid #c9a84c;
-      color: #f2e4c4;
-      font-family: 'IM Fell English', serif;
-      cursor: pointer;
-      border-radius: 4px;
-      z-index: 101;
-      pointer-events: all;
-    `;
-    mapToggle.addEventListener("click", () => this.toggleMapView());
-    mapToggle.addEventListener("mouseover", (e) => {
-      e.target.style.background = "rgba(201, 168, 76, 0.5)";
-    });
-    mapToggle.addEventListener("mouseout", (e) => {
-      e.target.style.background = "rgba(201, 168, 76, 0.3)";
-    });
-
-    document.body.appendChild(gameContainer);
-    document.body.appendChild(hud);
-    document.body.appendChild(dialogBox);
-    document.body.appendChild(mapToggle);
-  }
-
-  toggleMapView() {
-    const ocean = document.getElementById("ocean");
-    const canvas = this.canvas;
-    const ui = document.getElementById("ui");
-
-    if (canvas.style.display === "none") {
-      canvas.style.display = "block";
-      ocean.style.display = "none";
-      ui.style.display = "none";
-      document.getElementById("compass").style.display = "none";
-      document.querySelector(".coords").style.display = "none";
-      document.querySelector(".version").style.display = "none";
-    } else {
-      canvas.style.display = "none";
-      ocean.style.display = "block";
-      ui.style.display = "block";
-      document.getElementById("compass").style.display = "block";
-      document.querySelector(".coords").style.display = "block";
-      document.querySelector(".version").style.display = "block";
-    }
-  }
-
-  updateHUD() {
-    const hud = document.getElementById("hud");
-    const pos = this.player.getPosition();
-    hud.innerHTML = `
-      <div><strong>Grandes Navegações</strong></div>
-      <div style="margin-top: 8px; font-size: 12px; opacity: 0.8;">
-        Posição: ${Math.round(pos.x)}, ${Math.round(pos.y)}<br/>
-        Área: <strong style="color: #c9a84c;">${this.map.currentArea?.name || "Desconhecida"}</strong><br/>
-        <br/>
-        <strong>Controles:</strong><br/>
-        WASD: Mover | Shift: Correr<br/>
-        E: Interagir | Esc: Fechar | 🗺️: Mapa
-      </div>
-    `;
-  }
-
-  drawMap() {
-    const w = this.canvas.width;
-    const h = this.canvas.height;
-
-    // Limpar canvas
-    this.ctx.fillStyle = "#0a1628";
-    this.ctx.fillRect(0, 0, w, h);
-
-    // Desenhar grid
-    this.ctx.strokeStyle = "rgba(201, 168, 76, 0.1)";
-    this.ctx.lineWidth = 1;
-    for (let i = 0; i < this.map.gameWidth; i += 100) {
-      const x = (i - this.viewportX) * this.cameraZoom + w / 2;
-      if (x > 0 && x < w) {
-        this.ctx.beginPath();
-        this.ctx.moveTo(x, 0);
-        this.ctx.lineTo(x, h);
-        this.ctx.stroke();
+      playing = true;
+      scheduleLoop();
+    },
+    toggle() {
+      if (!initialized) {
+        this.init();
+        return;
       }
-    }
-    for (let j = 0; j < this.map.gameHeight; j += 100) {
-      const y = (j - this.viewportY) * this.cameraZoom + h / 2;
-      if (y > 0 && y < h) {
-        this.ctx.beginPath();
-        this.ctx.moveTo(0, y);
-        this.ctx.lineTo(w, y);
-        this.ctx.stroke();
+      playing = !playing;
+      if (playing) {
+        master.gain.setTargetAtTime(0.18, ctx.currentTime, 0.5);
+        scheduleLoop();
+      } else {
+        master.gain.setTargetAtTime(0, ctx.currentTime, 0.8);
+        clearTimeout(loopTimer);
       }
-    }
+    },
+    get muted() {
+      return !playing;
+    },
+  };
+})();
 
-    // Desenhar áreas
-    this.map.areas.forEach((area) => {
-      const screenX = (area.x - this.viewportX) * this.cameraZoom + w / 2;
-      const screenY = (area.y - this.viewportY) * this.cameraZoom + h / 2;
-      const screenW = area.width * this.cameraZoom;
-      const screenH = area.height * this.cameraZoom;
+// ══════════════════════════════════════════════════
+//  SFX — SONS DE PASSOS (Web Audio API)
+// ══════════════════════════════════════════════════
+const SFX = (() => {
+  let stepPhase = 0; // alterna entre pé esquerdo e direito
 
-      // Fundo da área
-      this.ctx.fillStyle =
-        area === this.map.currentArea
-          ? "rgba(139, 26, 26, 0.3)"
-          : "rgba(26, 58, 92, 0.2)";
-      this.ctx.fillRect(screenX, screenY, screenW, screenH);
+  function footstep() {
+    const c = MUSIC.getCtx();
+    if (!c || c.state !== "running") return;
 
-      // Border da área
-      this.ctx.strokeStyle =
-        area === this.map.currentArea ? "#8b1a1a" : "rgba(201, 168, 76, 0.3)";
-      this.ctx.lineWidth = 2;
-      this.ctx.strokeRect(screenX, screenY, screenW, screenH);
+    const t = c.currentTime;
+    const out = c.destination;
 
-      // Nome da área
-      this.ctx.fillStyle =
-        area === this.map.currentArea ? "#8b1a1a" : "#c9a84c";
-      this.ctx.font = "bold 12px Arial";
-      this.ctx.textAlign = "center";
-      this.ctx.fillText(
-        area.name,
-        screenX + screenW / 2,
-        screenY + screenH / 2,
-      );
-    });
+    // Ruído branco curto — simula o impacto do passo
+    const bufLen = Math.floor(c.sampleRate * 0.07);
+    const buf = c.createBuffer(1, bufLen, c.sampleRate);
+    const data = buf.getChannelData(0);
+    for (let i = 0; i < bufLen; i++) data[i] = Math.random() * 2 - 1;
 
-    // Desenhar NPCs
-    const npcPositions = {
-      espanha: { id: "colombo", x: 350, y: 820, icon: "🧭", color: "#c9a84c" },
-      portugal: {
-        id: "henrique",
-        x: 250,
-        y: 200,
-        icon: "⚓",
-        color: "#f0d080",
-      },
-      india: { id: "gama", x: 1800, y: 700, icon: "🛳️", color: "#8b1a1a" },
-    };
+    const noise = c.createBufferSource();
+    noise.buffer = buf;
 
-    Object.values(npcPositions).forEach((npc) => {
-      const screenX = (npc.x - this.viewportX) * this.cameraZoom + w / 2;
-      const screenY = (npc.y - this.viewportY) * this.cameraZoom + h / 2;
+    // Filtro bandpass: esquerdo (~220Hz) e direito (~180Hz) — variação sutil
+    const bp = c.createBiquadFilter();
+    bp.type = "bandpass";
+    bp.frequency.value = stepPhase === 0 ? 220 : 180;
+    bp.Q.value = 1.2;
 
-      // Círculo do NPC
-      this.ctx.fillStyle = npc.color;
-      this.ctx.beginPath();
-      this.ctx.arc(screenX, screenY, 8, 0, Math.PI * 2);
-      this.ctx.fill();
+    // Filtro lowpass para tirar os agudos (som abafado de madeira/pedra)
+    const lp = c.createBiquadFilter();
+    lp.type = "lowpass";
+    lp.frequency.value = 400;
 
-      // Label
-      this.ctx.fillStyle = npc.color;
-      this.ctx.font = "bold 10px Arial";
-      this.ctx.textAlign = "center";
-      this.ctx.fillText(npc.icon, screenX, screenY + 15);
-    });
+    const g = c.createGain();
+    g.gain.setValueAtTime(0.9, t);
+    g.gain.exponentialRampToValueAtTime(0.001, t + 0.06);
 
-    // Desenhar player
-    const playerScreenX =
-      (this.player.x - this.viewportX) * this.cameraZoom + w / 2;
-    const playerScreenY =
-      (this.player.y - this.viewportY) * this.cameraZoom + h / 2;
+    noise.connect(bp);
+    bp.connect(lp);
+    lp.connect(g);
+    g.connect(out);
+    noise.start(t);
+    noise.stop(t + 0.07);
 
-    // Círculo maior (aura)
-    this.ctx.fillStyle = "rgba(201, 168, 76, 0.2)";
-    this.ctx.beginPath();
-    this.ctx.arc(playerScreenX, playerScreenY, 12, 0, Math.PI * 2);
-    this.ctx.fill();
+    // Pequeno "bump" de baixa frequência — ressonância do chão
+    const thud = c.createOscillator();
+    const tGain = c.createGain();
+    thud.type = "sine";
+    thud.frequency.value = 60;
+    tGain.gain.setValueAtTime(0.32, t);
+    tGain.gain.exponentialRampToValueAtTime(0.001, t + 0.05);
+    thud.connect(tGain);
+    tGain.connect(out);
+    thud.start(t);
+    thud.stop(t + 0.05);
 
-    // Personagem
-    this.ctx.fillStyle = "#f2e4c4";
-    this.ctx.beginPath();
-    this.ctx.arc(playerScreenX, playerScreenY, 8, 0, Math.PI * 2);
-    this.ctx.fill();
-
-    // Outline
-    this.ctx.strokeStyle = "#c9a84c";
-    this.ctx.lineWidth = 2;
-    this.ctx.beginPath();
-    this.ctx.arc(playerScreenX, playerScreenY, 8, 0, Math.PI * 2);
-    this.ctx.stroke();
-
-    // Velocidade indicator
-    const speed = this.inputManager.isSprinting() ? "SPRINT" : "NORMAL";
-    this.ctx.fillStyle = this.inputManager.isSprinting()
-      ? "#8b1a1a"
-      : "#c9a84c";
-    this.ctx.font = "bold 10px Arial";
-    this.ctx.textAlign = "center";
-    this.ctx.fillText(speed, playerScreenX, playerScreenY + 20);
+    stepPhase ^= 1;
   }
 
-  updateCamera() {
-    // Câmera segue o player
-    this.viewportX = this.player.x;
-    this.viewportY = this.player.y;
-  }
+  function dialogueOpen() {
+    const c = MUSIC.getCtx();
+    if (!c || c.state !== "running") return;
+    const t = c.currentTime;
 
-  showDialog(characterId) {
-    const node = this.dialogManager.startDialog(characterId);
-    if (node) {
-      this.displayDialogNode(node);
-    }
-  }
+    // Farfalhar de pergaminho — ruído filtrado em agudos
+    const bufLen = Math.floor(c.sampleRate * 0.12);
+    const buf = c.createBuffer(1, bufLen, c.sampleRate);
+    const data = buf.getChannelData(0);
+    for (let i = 0; i < bufLen; i++) data[i] = Math.random() * 2 - 1;
+    const noise = c.createBufferSource();
+    noise.buffer = buf;
+    const hp = c.createBiquadFilter();
+    hp.type = "highpass";
+    hp.frequency.value = 1800;
+    const ng = c.createGain();
+    ng.gain.setValueAtTime(0.25, t);
+    ng.gain.exponentialRampToValueAtTime(0.001, t + 0.11);
+    noise.connect(hp);
+    hp.connect(ng);
+    ng.connect(c.destination);
+    noise.start(t);
+    noise.stop(t + 0.12);
 
-  displayDialogNode(node) {
-    const dialogBox = document.getElementById("dialog-box");
-    dialogBox.style.display = "block";
-
-    let html = `<div style="margin-bottom: 15px;">
-      <strong style="color: #c9a84c; font-size: 16px;">${node.speaker}</strong>
-      <p style="margin-top: 10px; line-height: 1.6; font-size: 14px;">${node.text}</p>
-    </div>`;
-
-    if (node.choices && node.choices.length > 0) {
-      html +=
-        '<div style="display: flex; flex-direction: column; gap: 8px; margin-top: 15px;">';
-      node.choices.forEach((choice, index) => {
-        html += `<button class="dialog-choice" data-node-id="${choice.nextNodeId}" style="
-          background: rgba(201, 168, 76, 0.2);
-          border: 1px solid #c9a84c;
-          color: #f2e4c4;
-          padding: 8px 12px;
-          cursor: pointer;
-          font-family: 'IM Fell English', serif;
-          border-radius: 4px;
-          transition: all 0.3s;
-          text-align: left;
-        ">→ ${choice.text}</button>`;
-      });
-      html += "</div>";
-    }
-
-    dialogBox.innerHTML = html;
-
-    document.querySelectorAll(".dialog-choice").forEach((btn) => {
-      btn.addEventListener("click", (e) => {
-        const nodeId = e.target.dataset.nodeId;
-        if (nodeId === "null" || nodeId === null) {
-          this.closeDialog();
-        } else {
-          const nextNode = this.dialogManager.goToNode(nodeId);
-          if (nextNode) {
-            this.displayDialogNode(nextNode);
-          }
-        }
-      });
-      btn.addEventListener("mouseover", (e) => {
-        e.target.style.background = "rgba(201, 168, 76, 0.4)";
-      });
-      btn.addEventListener("mouseout", (e) => {
-        e.target.style.background = "rgba(201, 168, 76, 0.2)";
-      });
+    // Sininho medieval — pluck estilo harpa
+    [659.25, 880].forEach((freq, i) => {
+      const o = c.createOscillator();
+      const g = c.createGain();
+      o.type = "sine";
+      o.frequency.value = freq;
+      const delay = i * 0.06;
+      g.gain.setValueAtTime(0, t + delay);
+      g.gain.linearRampToValueAtTime(i === 0 ? 0.28 : 0.14, t + delay + 0.01);
+      g.gain.exponentialRampToValueAtTime(0.001, t + delay + 0.55);
+      o.connect(g);
+      g.connect(c.destination);
+      o.start(t + delay);
+      o.stop(t + delay + 0.6);
     });
   }
 
-  closeDialog() {
-    const dialogBox = document.getElementById("dialog-box");
-    dialogBox.style.display = "none";
-    this.dialogManager.endDialog();
-  }
+  return { footstep, dialogueOpen };
+})();
 
-  checkNPCInteraction() {
-    // NPCs por área (para simplificar, colocamos posições fixas)
-    const npcPositions = {
-      espanha: { id: "colombo", x: 350, y: 820, range: 80 },
-      portugal: { id: "henrique", x: 250, y: 200, range: 80 },
-      india: { id: "gama", x: 1800, y: 700, range: 80 },
-    };
-
-    const currentAreaNPC = npcPositions[this.map.currentArea?.id];
-    if (currentAreaNPC) {
-      const pos = this.player.getPosition();
-      const distance = Math.sqrt(
-        Math.pow(pos.x - currentAreaNPC.x, 2) +
-          Math.pow(pos.y - currentAreaNPC.y, 2),
-      );
-
-      if (distance < currentAreaNPC.range) {
-        // NPC próximo - pode interagir
-        if (this.inputManager.isKeyPressed("e")) {
-          this.showDialog(currentAreaNPC.id);
-          this.inputManager.keys["e"] = false; // Previne spam
-        }
-      }
-    }
-  }
-
-  gameLoop() {
-    if (!this.gameRunning) return;
-
-    const now = Date.now();
-    const deltaTime = (now - this.lastTime) / 1000;
-    this.lastTime = now;
-
-    // Atualizar player
-    this.player.update(this.inputManager, deltaTime);
-
-    // Limitar movimento às bordas do mapa
-    this.player.x = Math.max(0, Math.min(this.player.x, this.map.gameWidth));
-    this.player.y = Math.max(0, Math.min(this.player.y, this.map.gameHeight));
-
-    // Atualizar área atual
-    this.map.updatePlayerArea(this.player.x, this.player.y);
-
-    // Verificar interações
-    this.checkNPCInteraction();
-
-    // Atualizar câmera
-    this.updateCamera();
-
-    // Atualizar HUD
-    this.updateHUD();
-
-    // Desenhar mapa se visível
-    if (this.canvas.style.display !== "none") {
-      this.drawMap();
-    }
-
-    requestAnimationFrame(() => this.gameLoop());
-  }
-}
-
-// ==================== UI FUNCTIONS ====================
-
+// ══════════════════════════════════════════════════
+//  MENU
+// ══════════════════════════════════════════════════
 function openScreen(id) {
   document
     .querySelectorAll(".screen")
     .forEach((s) => s.classList.remove("active"));
   document.getElementById("screen-" + id)?.classList.add("active");
 }
-
 function closeScreen() {
   document
     .querySelectorAll(".screen")
     .forEach((s) => s.classList.remove("active"));
 }
 
-// ==================== INITIALIZATION ====================
+// ══════════════════════════════════════════════════
+//  IMAGEM DO MAPA
+// ══════════════════════════════════════════════════
+const mapImg = new Image();
+let mapImgLoaded = false;
+let collisionData = null;
 
-let game = null;
+mapImg.onload = () => {
+  mapImgLoaded = true;
+  // Lê pixels do mapa uma única vez para colisão
+  const c = document.createElement("canvas");
+  c.width = MAP_W;
+  c.height = MAP_H;
+  const cx = c.getContext("2d");
+  cx.drawImage(mapImg, 0, 0, MAP_W, MAP_H);
+  collisionData = cx.getImageData(0, 0, MAP_W, MAP_H).data;
+};
+mapImg.src = "game-desing/mapa.png";
 
-document.addEventListener("DOMContentLoaded", () => {
-  game = new GameManager();
-  console.log(
-    "Jogo iniciado! Use WASD para mover, Shift para correr, E para interagir com NPCs.",
-  );
+function isWalkable(x, y) {
+  if (!collisionData) return true;
+  const ix = Math.max(0, Math.min(MAP_W - 1, Math.floor(x)));
+  const iy = Math.max(0, Math.min(MAP_H - 1, Math.floor(y)));
+  const i = (iy * MAP_W + ix) * 4;
+  const r = collisionData[i],
+    g = collisionData[i + 1],
+    b = collisionData[i + 2];
+  if (b > 85 && r < 20) return false; // água
+  if (r < 35 && g < 35 && b < 35) return false; // sombras/interiores escuros
+  if (g > r + 10 && g > 70 && b < 30) return false; // grama/vegetação
+  return true;
+}
+
+// ══════════════════════════════════════════════════
+//  SPRITE DO JOGADOR
+// ══════════════════════════════════════════════════
+const playerSprite = new Image();
+let playerSpriteLoaded = false;
+playerSprite.onload = () => {
+  playerSpriteLoaded = true;
+};
+playerSprite.src = "game-desing/pedroalvarescabral.png";
+
+// Grade 4 colunas × 2 linhas detectada pixel a pixel (1774×887px)
+// Row 0: frente col 0-1 | costas col 2-3
+// Row 1: esquerda col 0-1 | direita col 2-3
+const SPR = {
+  dw: 20,
+  dh: 30, // tamanho de exibição (âncora nos pés)
+  frames: {
+    down: [
+      [171, 61, 184, 351],
+      [555, 61, 185, 351],
+    ],
+    up: [
+      [1013, 61, 185, 351],
+      [1396, 61, 184, 351],
+    ],
+    left: [
+      [171, 470, 184, 339],
+      [555, 470, 185, 339],
+    ],
+    right: [
+      [1013, 470, 185, 339],
+      [1396, 470, 184, 339],
+    ],
+  },
+};
+
+// ══════════════════════════════════════════════════
+//  CONSTANTES DO MAPA
+// ══════════════════════════════════════════════════
+const MAP_W = 1536;
+const MAP_H = 1024;
+
+// ══════════════════════════════════════════════════
+//  REGIÕES
+// ══════════════════════════════════════════════════
+const REGIONS = [
+  { y0: 0, y1: MAP_H, color: "#c2ad8a", name: "Lisboa — Portugal" },
+];
+
+// ══════════════════════════════════════════════════
+//  LOCAIS INTERATIVOS
+// ══════════════════════════════════════════════════
+const LOCATIONS = [
+  {
+    id: "rei",
+    x: 820,
+    y: 295,
+    label: "Palácio Real — Lisboa",
+    icon: "♜",
+    color: "#c9a84c",
+    dialogue: {
+      npc: "Rei Dom Manuel I",
+      lines: [
+        '"Sou Dom Manuel I, chamado O Venturoso. Em 1494, Portugal e Espanha assinaram o Tratado de Tordesilhas — dividindo o mundo ao meio pelo meridiano a 370 léguas de Cabo Verde."',
+        '"Em 1498, Vasco da Gama chegou à Índia pelo mar, contornando a África. Abriu a Rota das Especiarias e trouxe riquezas imensas para Portugal."',
+        '"Agora confio-te uma nova frota. Partes rumo ao sul — mas os ventos do Atlântico podem levar-te a terras ainda não registadas em nenhum mapa."',
+        '"Vai, Pedro Álvares. A história de Portugal está nas tuas mãos."',
+      ],
+      choices: [
+        { text: "Zarpar em nome de Vossa Majestade" },
+        { text: "Precisamos de mais navios" },
+      ],
+    },
+  },
+  {
+    id: "padre",
+    x: 1095,
+    y: 400,
+    label: "Catedral de Lisboa",
+    icon: "✝",
+    color: "#d4d4d4",
+    dialogue: {
+      npc: "Frei Henrique de Coimbra",
+      lines: [
+        '"A Ordem de Cristo financiou as grandes navegações portuguesas. A cruz vermelha nas velas das caravelas é o símbolo desta ordem religiosa e militar."',
+        '"A missão era dupla: comercial, buscando especiarias e ouro; e espiritual, levando a fé cristã aos povos do além-mar."',
+        '"Quando chegares a novas terras, celebrarei a primeira missa. Foi assim na Índia, e assim será em qualquer terra que Deus nos revelar."',
+        '"Vai com Deus, Pedro Álvares. A fé será tua bússola quando os mapas terminarem."',
+      ],
+    },
+  },
+  {
+    id: "infante",
+    x: 700,
+    y: 470,
+    label: "Infante D. Henrique",
+    icon: "♔",
+    color: "#c9a84c",
+    dialogue: {
+      npc: "Infante D. Henrique",
+      lines: [
+        '"Sou Henrique, o Navegador. Fundei em Sagres a Escola de Navegação, reunindo os melhores cartógrafos, astrônomos e marinheiros do mundo."',
+        '"Em 1434, Gil Eanes dobrou o Cabo Bojador — onde se dizia que o mar ferveria e monstros devorariam os navios. Quatorze expedições haviam falhado antes dele."',
+        '"Com a caravela — navio leve e capaz de navegar contra o vento — Portugal desceu toda a costa africana, abriu rotas e chegou à Índia."',
+        '"Cada légua explorada começa com coragem para avançar além do que os mapas mostram. Vai, e traz-me o que ainda não está registado."',
+      ],
+      choices: [
+        { text: "Aceitar o desafio" },
+        { text: "Preciso de mais tempo" },
+      ],
+    },
+  },
+  {
+    id: "porto",
+    x: 370,
+    y: 760,
+    label: "Porto de Lisboa",
+    icon: "⚓",
+    color: "#4a8fc9",
+    dialogue: {
+      npc: "Mestre do Porto",
+      lines: [
+        '"Bem-vindo ao Porto de Lisboa — o maior porto de Portugal! Daqui partiram todas as grandes expedições que mudaram o mundo."',
+        '"Esta é a tua caravela. Leve, veloz e capaz de navegar contra o vento — a caravela foi a grande inovação que tornou possíveis os Descobrimentos."',
+        '"Em 9 de março de 1500, treze navios e 1 200 homens partem sob o teu comando. O objetivo: seguir a rota de Vasco da Gama até à Índia."',
+        '"Fala com o Infante D. Henrique e com o Rei Dom Manuel antes de zarpar. Eles têm muito a te ensinar."',
+      ],
+      choices: [
+        { text: "Estou pronto para zarpar!" },
+        { text: "Preciso explorar a cidade primeiro" },
+      ],
+    },
+  },
+];
+
+// ══════════════════════════════════════════════════
+//  QUEST
+// ══════════════════════════════════════════════════
+// NPCs que precisam ser visitados antes de zarpar
+const QUEST_NPCS = ["infante", "rei", "padre"];
+
+const DIALOGUE_ZARPAR = {
+  npc: "Mestre do Porto",
+  lines: [
+    '"Então já falastes com o Infante, com o Rei e recebastes a bênção do Padre!"',
+    '"A frota está pronta: treze navios, mil e duzentos homens e provisões para seis meses."',
+    '"Os ventos sopram de Norte. É hora, Pedro Álvares Cabral — Portugal espera por vós!"',
+  ],
+  choices: [
+    { text: "⚓  ZARPAR!  A história nos aguarda!", action: "complete" },
+    { text: "Preciso de mais um momento..." },
+  ],
+};
+
+// ══════════════════════════════════════════════════
+//  ESTADO DO JOGO
+// ══════════════════════════════════════════════════
+const game = {
+  running: false,
+  keys: {},
+  player: { x: 360, y: 810, dir: "up", moving: false, speed: 1.6 },
+  camera: { x: 0, y: 0 },
+  nearLocation: null,
+  dialogue: null, // { data, line, showingChoices }
+  visited: new Set(), // ids dos NPCs já visitados
+};
+
+// ══════════════════════════════════════════════════
+//  CANVAS
+// ══════════════════════════════════════════════════
+const canvas = document.getElementById("game-canvas");
+const ctx = canvas.getContext("2d");
+
+function resizeCanvas() {
+  const wrapper = document.getElementById("game-wrapper");
+  canvas.width = wrapper.clientWidth;
+  canvas.height = wrapper.clientHeight;
+}
+window.addEventListener("resize", resizeCanvas);
+
+// ══════════════════════════════════════════════════
+//  INPUT
+// ══════════════════════════════════════════════════
+document.addEventListener("keydown", (e) => {
+  const key = e.key.toLowerCase();
+  game.keys[key] = true;
+
+  // Inicia música na primeira tecla (política de autoplay do browser)
+  MUSIC.init();
+
+  if (key === "e") handleInteract();
+  if (key === "m") {
+    MUSIC.toggle();
+    updateMusicBtn();
+  }
+  if (e.key === "Escape" && game.dialogue) {
+    closeDialogue();
+    e.preventDefault();
+  }
 });
+
+// ══════════════════════════════════════════════════
+// SECTION - INPUT MOUSE
+// ══════════════════════════════════════════════════
+
+// 1. Captura o M1 (Botão Esquerdo) para a ação
+document.addEventListener("mousedown", (e) => {
+  if (e.button === 0) {
+    // Inicia a música pelo clique (política de autoplay do browser)
+    MUSIC.init();
+
+    // Executa a mesma ação que a letra "E" faria (Interagir)
+    handleInteract();
+  }
+});
+
+// 2. Bloqueia o menu do navegador no clique direito (M2)
+document.addEventListener("contextmenu", (e) => {
+  // Impede que o menu padrão abra e atrapalhe o jogo
+  e.preventDefault();
+});
+
+function updateMusicBtn() {
+  const btn = document.getElementById("music-btn");
+  if (btn) btn.textContent = MUSIC.muted ? "🔇" : "🎵";
+}
+document.addEventListener("keyup", (e) => {
+  game.keys[e.key.toLowerCase()] = false;
+});
+
+// ══════════════════════════════════════════════════
+//  CICLO DE VIDA
+// ══════════════════════════════════════════════════
+function startGame() {
+  resizeCanvas();
+  canvas.style.display = "block";
+  document.getElementById("hud").style.display = "block";
+
+  game.player.x = 360;
+  game.player.y = 810;
+  game.player.dir = "up";
+  game.camera.x = Math.max(
+    0,
+    Math.min(MAP_W - canvas.width, game.player.x - canvas.width / 2),
+  );
+  game.camera.y = Math.max(
+    0,
+    Math.min(MAP_H - canvas.height, game.player.y - canvas.height / 2),
+  );
+  game.dialogue = null;
+  game.running = true;
+
+  requestAnimationFrame(loop);
+}
+
+// ══════════════════════════════════════════════════
+//  LOOP PRINCIPAL
+// ══════════════════════════════════════════════════
+let lastTs = 0;
+function loop(ts) {
+  if (!game.running) return;
+  lastTs = ts;
+  update();
+  render(ts);
+  requestAnimationFrame(loop);
+}
+
+// ══════════════════════════════════════════════════
+//  UPDATE
+// ══════════════════════════════════════════════════
+function update() {
+  if (game.dialogue) return;
+
+  const k = game.keys;
+  const p = game.player;
+  const spd = k["shift"] ? p.speed * 1.8 : p.speed;
+
+  let dx = 0,
+    dy = 0;
+  if (k["w"] || k["arrowup"]) {
+    dy -= spd;
+    p.dir = "up";
+  }
+  if (k["s"] || k["arrowdown"]) {
+    dy += spd;
+    p.dir = "down";
+  }
+  if (k["a"] || k["arrowleft"]) {
+    dx -= spd;
+    p.dir = "left";
+  }
+  if (k["d"] || k["arrowright"]) {
+    dx += spd;
+    p.dir = "right";
+  }
+
+  if (dx !== 0 && dy !== 0) {
+    dx *= 0.707;
+    dy *= 0.707;
+  }
+
+  p.moving = dx !== 0 || dy !== 0;
+
+  // Som de passos sincronizado com a animação (frame muda a cada 180ms → passo a cada 360ms)
+  if (p.moving) {
+    const stepFrame = Math.floor(lastTs / 360);
+    if (stepFrame !== p._lastStepFrame) {
+      p._lastStepFrame = stepFrame;
+      SFX.footstep();
+    }
+  }
+
+  const nx = Math.max(16, Math.min(MAP_W - 16, p.x + dx));
+  const ny = Math.max(16, Math.min(MAP_H - 16, p.y + dy));
+  if (isWalkable(nx, ny)) {
+    p.x = nx;
+    p.y = ny;
+  } else if (isWalkable(nx, p.y)) {
+    p.x = nx;
+  } else if (isWalkable(p.x, ny)) {
+    p.y = ny;
+  }
+
+  // Câmera suave
+  const tx = p.x - canvas.width * 0.5;
+  const ty = p.y - canvas.height * 0.5;
+  game.camera.x += (tx - game.camera.x) * 0.1;
+  game.camera.y += (ty - game.camera.y) * 0.1;
+  game.camera.x = Math.max(0, Math.min(MAP_W - canvas.width, game.camera.x));
+  game.camera.y = Math.max(0, Math.min(MAP_H - canvas.height, game.camera.y));
+
+  // Local próximo
+  game.nearLocation = null;
+  for (const loc of LOCATIONS) {
+    if (Math.hypot(p.x - loc.x, p.y - loc.y) < 65) {
+      game.nearLocation = loc;
+      break;
+    }
+  }
+
+  // HUD prompt
+  const prompt = document.getElementById("location-prompt");
+  if (game.nearLocation) {
+    prompt.textContent = `[E]  ${game.nearLocation.label}`;
+    prompt.classList.add("visible");
+  } else {
+    prompt.classList.remove("visible");
+  }
+
+  // Região atual
+  const region = REGIONS.find((r) => p.y >= r.y0 && p.y < r.y1) ?? REGIONS[2];
+  document.getElementById("region-label").textContent =
+    region.name.toUpperCase();
+}
+
+// ══════════════════════════════════════════════════
+//  DIÁLOGO
+// ══════════════════════════════════════════════════
+function questDone() {
+  return QUEST_NPCS.every((id) => game.visited.has(id));
+}
+
+function handleInteract() {
+  if (game.dialogue) {
+    advanceLine();
+    return;
+  }
+  if (!game.nearLocation) return;
+  const loc = game.nearLocation;
+  // Porto com missão completa → diálogo de zarpar
+  const data =
+    loc.id === "porto" && questDone() ? DIALOGUE_ZARPAR : loc.dialogue;
+  openDialogue(data, loc.id);
+}
+
+function openDialogue(data, npcId = null) {
+  SFX.dialogueOpen();
+  if (npcId && QUEST_NPCS.includes(npcId)) {
+    game.visited.add(npcId);
+    updateQuestHUD();
+  }
+  game.dialogue = { data, line: 0, showingChoices: false };
+  document.getElementById("dialogue-npc-name").textContent = data.npc;
+  document.getElementById("dialogue-text").textContent = data.lines[0];
+  document.getElementById("dialogue-choices").innerHTML = "";
+  document.getElementById("dialogue-advance").style.display = "block";
+  updateAdvanceHint(data, 0);
+  document.getElementById("dialogue-box").classList.add("active");
+}
+
+function updateQuestHUD() {
+  const items = document.querySelectorAll("#quest-hud .q-item");
+  items.forEach((el) => {
+    const id = el.dataset.id;
+    el.classList.toggle("done", game.visited.has(id));
+  });
+  // Prompt no Porto muda quando missão completa
+  if (questDone() && game.nearLocation?.id === "porto") {
+    document.getElementById("location-prompt").textContent = "[E]  Zarpar!";
+  }
+}
+
+function updateAdvanceHint(data, line) {
+  const isLast = line === data.lines.length - 1;
+  const adv = document.getElementById("dialogue-advance");
+  if (isLast && data.choices) adv.textContent = "▶  E — Ver opções";
+  else if (isLast) adv.textContent = "▶  E — Fechar";
+  else adv.textContent = "▶  E — Continuar";
+}
+
+function advanceLine() {
+  const d = game.dialogue;
+  if (!d || d.showingChoices) return;
+
+  d.line++;
+  if (d.line >= d.data.lines.length) {
+    if (d.data.choices) showChoices(d.data.choices);
+    else closeDialogue();
+    return;
+  }
+  document.getElementById("dialogue-text").textContent = d.data.lines[d.line];
+  updateAdvanceHint(d.data, d.line);
+}
+
+function showChoices(choices) {
+  game.dialogue.showingChoices = true;
+  document.getElementById("dialogue-advance").style.display = "none";
+  const container = document.getElementById("dialogue-choices");
+  container.innerHTML = "";
+  choices.forEach((c) => {
+    const btn = document.createElement("button");
+    btn.className = "choice-btn";
+    btn.textContent = c.text;
+    if (c.action === "complete") {
+      btn.classList.add("choice-btn--primary");
+      btn.addEventListener("click", () => {
+        closeDialogue();
+        showCompletion();
+      });
+    } else {
+      btn.addEventListener("click", closeDialogue);
+    }
+    container.appendChild(btn);
+  });
+}
+
+function showCompletion() {
+  game.running = false;
+  document.getElementById("completion-screen").classList.add("active");
+}
+
+function closeDialogue() {
+  game.dialogue = null;
+  document.getElementById("dialogue-box").classList.remove("active");
+}
+
+function restartGame() {
+  document.getElementById("completion-screen").classList.remove("active");
+  game.visited.clear();
+  updateQuestHUD();
+  game.player.x = 360;
+  game.player.y = 810;
+  game.player.dir = "up";
+  game.camera.x = 0;
+  game.camera.y = 0;
+  game.dialogue = null;
+  game.running = true;
+  requestAnimationFrame(loop);
+}
+
+// ══════════════════════════════════════════════════
+//  RENDER
+// ══════════════════════════════════════════════════
+function render(ts) {
+  const cx = game.camera.x | 0;
+  const cy = game.camera.y | 0;
+
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.save();
+  ctx.translate(-cx, -cy);
+
+  drawRegions();
+  drawDecorations();
+  drawGrid();
+  drawLocations(ts);
+  drawPlayer(ts);
+
+  ctx.restore();
+  drawMinimap(cx, cy);
+}
+
+// ── Mapa ─────────────────────────────────────────
+function drawRegions() {
+  if (mapImgLoaded) {
+    ctx.drawImage(mapImg, 0, 0, MAP_W, MAP_H);
+  } else {
+    ctx.fillStyle = "#c2ad8a";
+    ctx.fillRect(0, 0, MAP_W, MAP_H);
+  }
+}
+
+function drawDecorations() {}
+function drawGrid() {}
+
+// ── Locais ───────────────────────────────────────
+function drawLocations(ts) {
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+
+  for (const loc of LOCATIONS) {
+    const near = game.nearLocation?.id === loc.id;
+    const pulse = 0.5 + 0.5 * Math.sin(ts * 0.004);
+
+    if (near) {
+      ctx.beginPath();
+      ctx.arc(loc.x, loc.y, 32 + pulse * 10, 0, Math.PI * 2);
+      ctx.strokeStyle = `rgba(240,208,128,${0.35 * pulse})`;
+      ctx.lineWidth = 2;
+      ctx.stroke();
+    }
+
+    ctx.beginPath();
+    ctx.arc(loc.x, loc.y, 22, 0, Math.PI * 2);
+    ctx.fillStyle = near ? "rgba(16,36,68,0.96)" : "rgba(6,14,26,0.85)";
+    ctx.fill();
+    ctx.strokeStyle = near ? "#f0d080" : loc.color;
+    ctx.lineWidth = near ? 2.5 : 1.5;
+    ctx.stroke();
+
+    ctx.font = "15px serif";
+    ctx.fillStyle = near ? "#f0d080" : loc.color;
+    ctx.fillText(loc.icon, loc.x, loc.y + 1);
+
+    ctx.textBaseline = "top";
+    ctx.font = `${near ? 600 : 400} 10px Cinzel, serif`;
+    ctx.fillStyle = near ? "#f0d080" : "rgba(220,200,155,0.7)";
+    ctx.fillText(loc.label, loc.x, loc.y + 28);
+    ctx.textBaseline = "middle";
+
+    // Checkmark para NPCs já visitados
+    if (game.visited.has(loc.id)) {
+      ctx.beginPath();
+      ctx.arc(loc.x + 16, loc.y - 16, 8, 0, Math.PI * 2);
+      ctx.fillStyle = "#2ecc71";
+      ctx.fill();
+      ctx.font = "bold 10px sans-serif";
+      ctx.fillStyle = "#fff";
+      ctx.textBaseline = "middle";
+      ctx.fillText("✓", loc.x + 16, loc.y - 16);
+      ctx.textBaseline = "middle";
+    }
+  }
+}
+
+// ── Jogador (sprite Pedro Álvares Cabral) ────────
+function drawPlayer(ts) {
+  const p = game.player;
+  const bob = p.moving ? Math.sin(ts * 0.009) * 1.5 : 0;
+
+  if (!playerSpriteLoaded) {
+    ctx.save();
+    ctx.translate(p.x, p.y + bob);
+    ctx.rotate(
+      { up: -Math.PI / 2, down: Math.PI / 2, left: Math.PI, right: 0 }[p.dir],
+    );
+    ctx.shadowColor = "rgba(240,208,128,0.65)";
+    ctx.shadowBlur = 14;
+    ctx.beginPath();
+    ctx.moveTo(19, 0);
+    ctx.lineTo(-12, -12);
+    ctx.lineTo(-7, 0);
+    ctx.lineTo(-12, 12);
+    ctx.closePath();
+    ctx.fillStyle = "#f0d080";
+    ctx.fill();
+    ctx.shadowBlur = 0;
+    ctx.strokeStyle = "#7a2a0a";
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    ctx.restore();
+    return;
+  }
+
+  // 2 frames por direção: 0=idle, 1=passo — alterna a ~5fps ao mover
+  const frame = p.moving ? Math.floor(ts / 180) % 2 : 0;
+  const [sx, sy, sw, sh] = SPR.frames[p.dir][frame];
+
+  ctx.save();
+  ctx.translate(p.x, p.y + bob);
+
+  // Sombra no chão
+  ctx.fillStyle = "rgba(0,0,0,0.22)";
+  ctx.beginPath();
+  ctx.ellipse(0, 4, SPR.dw / 2 - 2, 5, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Âncora nos pés (bottom-center)
+  ctx.drawImage(
+    playerSprite,
+    sx,
+    sy,
+    sw,
+    sh,
+    -SPR.dw / 2,
+    -SPR.dh,
+    SPR.dw,
+    SPR.dh,
+  );
+
+  ctx.restore();
+}
+
+// ── Minimapa ─────────────────────────────────────
+function drawMinimap(cx, cy) {
+  const mw = 160,
+    mh = 115;
+  const mx = canvas.width - mw - 16,
+    my = 16;
+  const sx = mw / MAP_W,
+    sy = mh / MAP_H;
+
+  ctx.fillStyle = "rgba(6,14,26,0.9)";
+  ctx.fillRect(mx, my, mw, mh);
+  ctx.strokeStyle = "rgba(201,168,76,0.35)";
+  ctx.lineWidth = 1;
+  ctx.strokeRect(mx, my, mw, mh);
+
+  ctx.globalAlpha = 0.75;
+  for (const r of REGIONS) {
+    ctx.fillStyle = r.color;
+    ctx.fillRect(mx, my + r.y0 * sy, mw, (r.y1 - r.y0) * sy);
+  }
+  ctx.globalAlpha = 1;
+
+  // Pontos dos locais
+  for (const loc of LOCATIONS) {
+    ctx.beginPath();
+    ctx.arc(mx + loc.x * sx, my + loc.y * sy, 2, 0, Math.PI * 2);
+    ctx.fillStyle = loc.color;
+    ctx.fill();
+  }
+
+  // Viewport rect
+  ctx.strokeStyle = "rgba(240,208,128,0.25)";
+  ctx.lineWidth = 1;
+  ctx.strokeRect(
+    mx + cx * sx,
+    my + cy * sy,
+    canvas.width * sx,
+    canvas.height * sy,
+  );
+
+  // Ponto do jogador
+  ctx.beginPath();
+  ctx.arc(mx + game.player.x * sx, my + game.player.y * sy, 3, 0, Math.PI * 2);
+  ctx.fillStyle = "#f0d080";
+  ctx.shadowColor = "#f0d080";
+  ctx.shadowBlur = 6;
+  ctx.fill();
+  ctx.shadowBlur = 0;
+
+  ctx.font = "8px Cinzel, serif";
+  ctx.fillStyle = "rgba(201,168,76,0.4)";
+  ctx.textAlign = "left";
+  ctx.fillText("MAPA", mx + 4, my + mh - 4);
+}
+
+window.addEventListener("load", startGame);
